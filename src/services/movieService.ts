@@ -1,64 +1,39 @@
 import axios from "axios";
-import type { AxiosResponse } from "axios";
 import type { Movie } from "../types/movie";
 
-const TMDB_BASE = "https://api.themoviedb.org/3";
+const TMDB_BASE_URL = "https://api.themoviedb.org/3";
 
-const TOKEN = import.meta.env.VITE_TMDB_TOKEN as string;
-
-if (!TOKEN) {
-  console.warn(
-    "VITE_TMDB_TOKEN is missing. Set it in .env. Requests will fail without it."
-  );
-}
-
-const http = axios.create({
-  baseURL: TMDB_BASE,
+const api = axios.create({
+  baseURL: TMDB_BASE_URL,
   headers: {
-    Authorization: `Bearer ${TOKEN}`,
+    Authorization: `Bearer ${import.meta.env.VITE_TMDB_TOKEN}`,
     "Content-Type": "application/json;charset=utf-8",
   },
 });
 
-export interface SearchMoviesParams {
+export interface FetchMoviesParams {
   query: string;
   page?: number;
-  include_adult?: boolean;
+  includeAdult?: boolean;
   language?: string;
 }
 
-export interface SearchMoviesResponse {
-  page: number;
+interface FetchMoviesResponse {
   results: Movie[];
-  total_pages: number;
-  total_results: number;
 }
 
-export async function fetchMovies(
-  params: SearchMoviesParams
-): Promise<SearchMoviesResponse> {
-  const { query, page = 1, include_adult = false, language = "en-US" } = params;
-
-  const res: AxiosResponse<SearchMoviesResponse> = await http.get(
-    "/search/movie",
-    {
-      params: { query, page, include_adult, language },
-    }
-  );
-
-  return res.data;
-}
-
-export async function fetchMovieDetails(movieId: number): Promise<Movie> {
-  const res: AxiosResponse<Movie> = await http.get(`/movie/${movieId}`, {
-    params: { language: "en-US" },
+export async function fetchMovies({
+  query,
+  page = 1,
+  includeAdult = false,
+  language = "en-US",
+}: FetchMoviesParams): Promise<Movie[]> {
+  const { data } = await api.get<FetchMoviesResponse>("/search/movie", {
+    params: { query, page, include_adult: includeAdult, language },
   });
-  return res.data;
+  return data.results;
 }
 
-export async function fetchTrendingMovies(): Promise<Movie[]> {
-  const res: AxiosResponse<{ results: Movie[] }> = await http.get(
-    "/trending/movie/week"
-  );
-  return res.data.results;
+export function buildImageUrl(path: string | null, size: "w500" | "original") {
+  return path ? `https://image.tmdb.org/t/p/${size}${path}` : "";
 }

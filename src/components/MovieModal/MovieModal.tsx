@@ -1,73 +1,80 @@
-import React, { useEffect, useRef, useCallback } from "react";
+import { useEffect } from "react";
 import { createPortal } from "react-dom";
-import css from "./ MovieModal.module.css";
-
+import styles from "./MovieModal.module.css";
 import type { Movie } from "../../types/movie";
-import { backdropUrl } from "../../utils/imageUrl";
+import { buildImageUrl } from "../../services/movieService";
 
 export interface MovieModalProps {
-  movie: Movie;
+  movie: Movie | null;
   onClose: () => void;
 }
 
-const modalRoot = document.getElementById("modal-root") as HTMLElement;
+const modalRoot =
+  document.getElementById("modal-root") ??
+  (() => {
+    const el = document.createElement("div");
+    el.id = "modal-root";
+    document.body.appendChild(el);
+    return el;
+  })();
 
-const MovieModal: React.FC<MovieModalProps> = ({ movie, onClose }) => {
-  const backdropRef = useRef<HTMLDivElement>(null);
-
-  const onEsc = useCallback(
-    (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    },
-    [onClose]
-  );
-
+export default function MovieModal({ movie, onClose }: MovieModalProps) {
   useEffect(() => {
-    document.addEventListener("keydown", onEsc);
-    return () => document.removeEventListener("keydown", onEsc);
-  }, [onEsc]);
+    if (!movie) return;
 
-  const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === backdropRef.current) onClose();
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [movie, onClose]);
+
+  if (!movie) return null;
+
+  const handleBackdrop = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) onClose();
   };
 
   return createPortal(
     <div
-      className={css.backdrop}
+      className={styles.backdrop}
       role="dialog"
       aria-modal="true"
-      ref={backdropRef}
-      onMouseDown={handleBackdropClick}
+      onClick={handleBackdrop}
     >
-      <div className={css.modal} role="document">
+      <div className={styles.modal}>
         <button
-          className={css.closeButton}
+          className={styles.closeButton}
           aria-label="Close modal"
           onClick={onClose}
         >
           &times;
         </button>
-
         <img
-          src={backdropUrl(movie.backdrop_path, "original") || undefined}
+          src={buildImageUrl(movie.backdrop_path, "original")}
           alt={movie.title}
-          className={css.image}
+          className={styles.image}
         />
-
-        <div className={css.content}>
+        <div className={styles.content}>
           <h2>{movie.title}</h2>
-          <p>{movie.overview || "No overview available."}</p>
+          <p>{movie.overview}</p>
           <p>
             <strong>Release Date:</strong> {movie.release_date || "—"}
           </p>
           <p>
-            <strong>Rating:</strong> {movie.vote_average?.toFixed(1) ?? "—"}/10
+            <strong>Rating:</strong> {movie.vote_average}/10
           </p>
         </div>
       </div>
     </div>,
     modalRoot
   );
-};
-
-export default MovieModal;
+}
